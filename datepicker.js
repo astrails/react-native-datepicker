@@ -6,21 +6,21 @@ import {
   Image,
   Modal,
   TouchableHighlight,
-  DatePickerAndroid,
-  TimePickerAndroid,
-  DatePickerIOS,
   Platform,
   Animated,
   Keyboard
 } from 'react-native';
 import Style from './style';
 import Moment from 'moment';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const FORMATS = {
   'date': 'YYYY-MM-DD',
   'datetime': 'YYYY-MM-DD HH:mm',
   'time': 'HH:mm'
 };
+
+const isIOS = Platform.OS === 'ios';
 
 const SUPPORTED_ORIENTATIONS = ['portrait', 'portrait-upside-down', 'landscape', 'landscape-left', 'landscape-right'];
 
@@ -32,7 +32,9 @@ class DatePicker extends Component {
       date: this.getDate(),
       modalVisible: false,
       animatedHeight: new Animated.Value(0),
-      allowPointerEvents: true
+      allowPointerEvents: true,
+      isPicker: false,
+      stage: 'date'
     };
 
     this.getDate = this.getDate.bind(this);
@@ -45,8 +47,7 @@ class DatePicker extends Component {
     this.onPressMask = this.onPressMask.bind(this);
     this.onDatePicked = this.onDatePicked.bind(this);
     this.onTimePicked = this.onTimePicked.bind(this);
-    this.onDatetimePicked = this.onDatetimePicked.bind(this);
-    this.onDatetimeTimePicked = this.onDatetimeTimePicked.bind(this);
+    this.onDateTimePicked = this.onDateTimePicked.bind(this);
     this.setModalVisible = this.setModalVisible.bind(this);
   }
 
@@ -66,7 +67,8 @@ class DatePicker extends Component {
         this.state.animatedHeight,
         {
           toValue: height,
-          duration: duration
+          duration: duration,
+          useNativeDriver: false
         }
       ).start();
     } else {
@@ -74,7 +76,8 @@ class DatePicker extends Component {
         this.state.animatedHeight,
         {
           toValue: 0,
-          duration: duration
+          duration: duration,
+          useNativeDriver: false
         }
       ).start(() => {
         this.setState({modalVisible: visible});
@@ -184,7 +187,7 @@ class DatePicker extends Component {
     );
   }
 
-  onDateChange(date) {
+  onDateChange(event, date) {
     this.setState({
       allowPointerEvents: false,
       date: date
@@ -197,53 +200,57 @@ class DatePicker extends Component {
     }, 200);
   }
 
-  onDatePicked({action, year, month, day}) {
-    if (action !== DatePickerAndroid.dismissedAction) {
+  onDatePicked(event,date) {
+    if (date === undefined) {
+      this.setState({isPicker: false})
+    } else {
       this.setState({
-        date: new Date(year, month, day)
+        date: Moment(date),
+        isPicker: false
       });
       this.datePicked();
-    } else {
-      this.onPressCancel();
     }
   }
 
-  onTimePicked({action, hour, minute}) {
-    if (action !== DatePickerAndroid.dismissedAction) {
+  onTimePicked(event, time) {
+    if (time === undefined) {
+      this.setState({isPicker: false})
+    } else {
       this.setState({
-        date: Moment().hour(hour).minute(minute).toDate()
+        date: Moment(time),
+        isPicker: false
       });
       this.datePicked();
-    } else {
-      this.onPressCancel();
     }
   }
 
-  onDatetimePicked({action, year, month, day}) {
-    const {mode, androidMode, format = FORMATS[mode], is24Hour = !format.match(/h|a/)} = this.props;
-
-    if (action !== DatePickerAndroid.dismissedAction) {
-      let timeMoment = Moment(this.state.date);
-
-      TimePickerAndroid.open({
-        hour: timeMoment.hour(),
-        minute: timeMoment.minutes(),
-        is24Hour: is24Hour,
-        mode: androidMode
-      }).then(this.onDatetimeTimePicked.bind(this, year, month, day));
-    } else {
-      this.onPressCancel();
+  onDateTimePicked(event, date) {
+    if (date === undefined) {
+      this.setState({isPicker: false});
+      return;
     }
-  }
-
-  onDatetimeTimePicked(year, month, day, {action, hour, minute}) {
-    if (action !== DatePickerAndroid.dismissedAction) {
+    // if (isIOS) {
+    //   this.setState({
+    //     date: Moment(date),
+    //     isPicker: false
+    //   });
+    //   this.datePicked();
+    //   return;
+    // }
+    if (this.state.stage === 'date') {
       this.setState({
-        date: new Date(year, month, day, hour, minute)
+        date,
+        stage: 'time'
+      });
+      return;
+    }
+    if (this.state.stage === 'time') {
+      this.setState({
+        date: Moment(date),
+        stage: 'date',
+        isPicker: false
       });
       this.datePicked();
-    } else {
-      this.onPressCancel();
     }
   }
 
@@ -256,44 +263,12 @@ class DatePicker extends Component {
 
     // reset state
     this.setState({
-      date: this.getDate()
+      date: this.getDate(),
+      isPicker: true
     });
 
     if (Platform.OS === 'ios') {
       this.setModalVisible(true);
-    } else {
-
-      const {mode, androidMode, format = FORMATS[mode], minDate, maxDate, is24Hour = !format.match(/h|a/)} = this.props;
-
-      // 选日期
-      if (mode === 'date') {
-        DatePickerAndroid.open({
-          date: this.state.date,
-          minDate: minDate && this.getDate(minDate),
-          maxDate: maxDate && this.getDate(maxDate),
-          mode: androidMode
-        }).then(this.onDatePicked);
-      } else if (mode === 'time') {
-        // 选时间
-
-        let timeMoment = Moment(this.state.date);
-
-        TimePickerAndroid.open({
-          hour: timeMoment.hour(),
-          minute: timeMoment.minutes(),
-          is24Hour: is24Hour,
-          mode: androidMode
-        }).then(this.onTimePicked);
-      } else if (mode === 'datetime') {
-        // 选日期和时间
-
-        DatePickerAndroid.open({
-          date: this.state.date,
-          minDate: minDate && this.getDate(minDate),
-          maxDate: maxDate && this.getDate(maxDate),
-          mode: androidMode
-        }).then(this.onDatetimePicked);
-      }
     }
 
     if (typeof this.props.onOpenModal === 'function') {
@@ -391,12 +366,12 @@ class DatePicker extends Component {
                     style={[Style.datePickerCon, {height: this.state.animatedHeight}, customStyles.datePickerCon]}
                   >
                     <View pointerEvents={this.state.allowPointerEvents ? 'auto' : 'none'}>
-                      <DatePickerIOS
-                        date={this.state.date}
+                      <DateTimePicker
+                        value={this.state.date}
                         mode={mode}
                         minimumDate={minDate && this.getDate(minDate)}
                         maximumDate={maxDate && this.getDate(maxDate)}
-                        onDateChange={this.onDateChange}
+                        onChange={this.onDateChange}
                         minuteInterval={minuteInterval}
                         timeZoneOffsetInMinutes={timeZoneOffsetInMinutes ? timeZoneOffsetInMinutes : null}
                         style={[Style.datePicker, customStyles.datePicker]}
@@ -433,6 +408,49 @@ class DatePicker extends Component {
               </TouchableComponent>
             </View>
           </Modal>}
+          {
+            (mode === 'time' && this.state.isPicker)
+              ? (<DateTimePicker
+                mode="time"
+                value={this.state.date}
+                onChange={this.onTimePicked}
+              />)
+              : null
+          }
+          {
+            (mode === 'datetime' && this.state.isPicker && this.state.stage === 'date')
+              ? (<DateTimePicker
+                mode="date"
+                minimumDate={minDate && this.getDate(minDate)}
+                maximumDate={maxDate && this.getDate(maxDate)}
+                value={this.state.date}
+                onChange={this.onDateTimePicked}
+              />)
+              :
+               null
+          }
+          {
+            (mode === 'datetime' && this.state.isPicker && this.state.stage === 'time')
+              ? (<DateTimePicker
+                mode="time"
+                minimumDate={minDate && this.getDate(minDate)}
+                maximumDate={maxDate && this.getDate(maxDate)}
+                value={this.state.date}
+                onChange={this.onDateTimePicked}
+              />)
+              : null
+          }
+          {
+            (mode === 'date' && this.state.isPicker)
+              ? (<DateTimePicker
+                  mode="date"
+                  minimumDate={minDate && this.getDate(minDate)}
+                  maximumDate={maxDate && this.getDate(maxDate)}
+                  value={this.state.date}
+                  onChange={this.onDatePicked}
+                />)
+              : null
+          }
         </View>
       </TouchableComponent>
     );
