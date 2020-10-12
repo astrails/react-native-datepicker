@@ -10,7 +10,7 @@ import {
   Animated,
   Keyboard
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import RNDateTimePicker from '@react-native-community/datetimepicker';
 import Style from './style';
 import Moment from 'moment';
 
@@ -330,7 +330,7 @@ class DatePicker extends Component {
                     style={[Style.datePickerCon, {height: this.state.animatedHeight}, customStyles.datePickerCon]}
                   >
                     <View pointerEvents={this.state.allowPointerEvents ? 'auto' : 'none'}>
-                      <DateTimePicker
+                      <RNDateTimePicker
                         value={this.state.date}
                         mode={mode}
                         minimumDate={minDate && this.getDate(minDate)}
@@ -374,7 +374,7 @@ class DatePicker extends Component {
           </Modal>}
           {
             (mode === 'time' && this.state.isPicker)
-              ? (<DateTimePicker
+              ? (<RNDateTimePicker
                   mode="time"
                   value={this.state.date}
                   onChange={this.onTimePicked}
@@ -383,7 +383,7 @@ class DatePicker extends Component {
           }
           {
             (mode === 'date' && this.state.isPicker)
-              ? (<DateTimePicker
+              ? (<RNDateTimePicker
                   mode="date"
                   minimumDate={minDate && this.getDate(minDate)}
                   maximumDate={maxDate && this.getDate(maxDate)}
